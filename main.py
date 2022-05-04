@@ -1,199 +1,251 @@
-print(f'{Fore.LIGHTMAGENTA_EX}[?] {Fore.LIGHTCYAN_EX}How many Tokens u want to Generate?')
-    x = int(input(f"{Fore.LIGHTMAGENTA_EX}[?]{Fore.LIGHTCYAN_EX} "))
-    tokentxt = open('Data/tokens.txt', 'w+')
-    while not (x == 0) :
-        tokens = (''.join(random.SystemRandom().choice(string.ascii_lowercase + string.digits) for _ in range(30)))
-        print(tokens)
-        x -= 1
-        a_file = open("Data/tokens.txt", "a")
-        a_file.write(tokens + '\n')
-        a_file.close()
-    print('end')
-    print('Made by MontesGlied#5325')
-    time.sleep(10)
-    quit()
+import requests
+import logging
+import json
+from colorama import Fore, Style, init 
+import os
+import platform
+from typing import List
 
-class Main:
-    def clear(self):
-        if name == 'posix':
-            system('clear')
-        elif name in ('ce', 'nt', 'dos'):
-            system('cls')
-        else:
-            print("\n") * 120
+init(convert=True)
 
-    def SetTitle(self,title:str):
-        if name == 'posix':
-            stdout.write(f"\x1b]2;{title}\x07")
-        elif name in ('ce', 'nt', 'dos'):
-            system(f'title {title}')
-        else:
-            stdout.write(f"\x1b]2;{title}\x07")
+logging.basicConfig(format='[%(asctime)s] %(message)s', datefmt='%H:%M:%S', level=logging.INFO) #change to logging.DEBUG
 
-    def ReadFile(self,filename,method):
-        with open(filename,method,encoding='utf8') as f:
-            content = [line.strip('\n') for line in f]
-            return content
+def clear():
+    system = platform.system()
+    if system == 'Windows':
+        os.system('cls')
+    elif system == 'Linux':
+        os.system('clear')
+    else:
+        print('\n')*120
 
-    def ReadJson(self,filename,method):
-        with open(filename,method) as f:
-            return json.load(f)
-
+class Twitch:
     def __init__(self):
-        self.SetTitle('Twitch Token Checker + Generator | Made by MontesGlied#5325')
-        self.clear()
+        self.HEADERS = {
+            "content-type": "application/json",
+            "accept" : "application/json",
+            "api-consumer-type":  "mobile; iOS/203500927335335108",
+            "accept-charset": "utf-8",
+            "client-id":  "85lcqzxpb9bqu9z6ga1ol55du",
+            "accept-language": "en-us",
+            "accept-encoding": "br, gzip, deflate",
+            "user-agent": "Twitch 203500927335335108 (iPhone; iOS 12.3.1; en_US)",
+            "x-apple-model":  "iPhone 7",
+            "x-app-version":  "9.10.1",
+            "x-apple-os-version": "12.3.1"
+        }
 
-        self.title = Style.BRIGHT+Fore.MAGENTA+"""
+    def _read_file(self, file:str) -> List[str]:
+        with open(file, 'r', encoding='utf-8') as f:
+            contents = [line.strip('\n') for line in f]
+        return contents
+
+    def _update_header(self, oauth: str) -> None:
+        self.HEADERS['Authorization'] = 'OAuth ' + oauth
+
+    def _login(self, username: str, password: str) -> bool:
+        data = {
+        'username': username,
+        'password': password,
+        'client_id': '85lcqzxpb9bqu9z6ga1ol55du'
+        }
+
+        r = requests.post('https://passport.twitch.tv/login', json=data)
+        logging.debug(r.text)
+
+        if 'access_token' in r.text:
+            token = r.json()['access_token']
+            logging.debug('Login succeded')
+            logging.debug('Token:%s' %token)
+            return token
+
+        if 'captcha' in r.text:
+            logging.warning('Captcha is required..')
         
-▄▄▄█████▓ █     █░ ██▓▄▄▄█████▓ ▄████▄   ██░ ██ 
-▓  ██▒ ▓▒▓█░ █ ░█░▓██▒▓  ██▒ ▓▒▒██▀ ▀█  ▓██░ ██▒
-▒ ▓██░ ▒░▒█░ █ ░█ ▒██▒▒ ▓██░ ▒░▒▓█    ▄ ▒██▀▀██░
-░ ▓██▓ ░ ░█░ █ ░█ ░██░░ ▓██▓ ░ ▒▓▓▄ ▄██▒░▓█ ░██ 
-  ▒██▒ ░ ░░██▒██▓ ░██░  ▒██▒ ░ ▒ ▓███▀ ░░▓█▒░██▓
-  ▒ ░░   ░ ▓░▒ ▒  ░▓    ▒ ░░   ░ ░▒ ▒  ░ ▒ ░░▒░▒
-    ░      ▒ ░ ░   ▒ ░    ░      ░  ▒    ▒ ░▒░ ░
-  ░        ░   ░   ▒ ░  ░      ░         ░  ░░ ░
-             ░     ░           ░ ░       ░  ░  ░
-                               ░          
- """
-        print(self.title)
+        logging.debug(r.text)
+        return False 
 
-        config = self.ReadJson('Data/configs.json','r')
+    def _get_cid(self, user: str, token: str) -> str:
+        cl= 'https://api.twitch.tv/api/channels/' + user + '/access_token?need_https=true&oauth_token=' + token
+        logging.debug('Channel post link for _cid created: %s' % cl)   
 
-        self.use_proxy = config['use_proxy']
-        self.proxy_type = config['proxy_type']
-        self.threads_num = config['threads']
-        self.webhook_enable = config['webhook_enable']
+        channel = requests.get(cl, headers=self.HEADERS)
 
-        self.webhook_url = config['webhook_url']
+        logging.debug(channel.text)
 
-        print('')
-
-        self.hits = 0
-        self.bads = 0
-        self.retries = 0
-        self.webhook_retries = 0
-        self.lock = Lock()
-
-    def SendWebhook(self,title,message,icon_url,thumbnail_url,proxy,useragent):
         try:
-            timestamp = str(datetime.utcnow())
+            token_info = channel.json()['token'] 
+            channel_id = json.loads(token_info)['channel_id']
+            logging.debug(channel_id)
+            return channel_id    
+        except KeyError:
+            return False
 
-            message_to_send = {"embeds": [{"title": title,"description": message,"color": 65362,"author": {"name": "AUTHOR'S DISCORD SERVER [CLICK HERE]","url": "https://discord.io/CheatAway","icon_url": icon_url},"footer": {"text": "Twitch token gen","icon_url": icon_url},"thumbnail": {"url": thumbnail_url},"timestamp": timestamp}]}
-            
-            headers = {
-                'User-Agent':useragent,
-                'Pragma':'no-cache',
-                'Accept':'*/*',
-                'Content-Type':'application/json'
-            }
+    def _follow(self, channel_id: str) -> bool:
+        payload = '[{\"operationName\":\"FollowButton_FollowUser\",\"variables\":{\"input\":{\"disableNotifications\":false,\"targetID\":\"%s\"}},\"extensions\":{\"persistedQuery\":{\"version\":1,\"sha256Hash\":\"51956f0c469f54e60211ea4e6a34b597d45c1c37b9664d4b62096a1ac03be9e6\"}}}]' % channel_id
 
-            payload = json.dumps(message_to_send)
+        r = requests.post('https://gql.twitch.tv/gql', data=payload, headers=self.HEADERS)
 
-            if self.use_proxy == 1:
-                response = requests.post(self.webhook_url,data=payload,headers=headers,proxies=proxy)
-            else:
-                response = requests.post(self.webhook_url,data=payload,headers=headers)
-
-            if response.text == "":
-                pass
-            elif "You are being rate limited." in response.text:
-                self.webhook_retries += 1
-                self.SendWebhook(title,message,icon_url,thumbnail_url,proxy,useragent)
-            else:
-                self.webhook_retries += 1
-                self.SendWebhook(title,message,icon_url,thumbnail_url,proxy,useragent)
-        except:
-            self.webhook_retries += 1
-            self.SendWebhook(title,message,icon_url,thumbnail_url,proxy,useragent)
-
-    def GetRandomUserAgent(self):
-        useragents = self.ReadFile('Data/useragents.txt','r')
-        return choice(useragents)
-
-    def PrintText(self,bracket_color:Fore,text_in_bracket_color:Fore,text_in_bracket,text):
-        self.lock.acquire()
-        stdout.flush()
-        text = text.encode('ascii','replace').decode()
-        stdout.write(Style.BRIGHT+bracket_color+'['+text_in_bracket_color+text_in_bracket+bracket_color+'] '+bracket_color+text+'\n')
-        self.lock.release()
-
-    def GetRandomProxy(self):
-        proxies_file = self.ReadFile('[Data]/proxies.txt','r')
-        proxies = {}
-        if self.proxy_type == 1:
-            proxies = {
-                "http":"http://{0}".format(choice(proxies_file)),
-                "https":"https://{0}".format(choice(proxies_file))
-            }
-        elif self.proxy_type == 2:
-            proxies = {
-                "http":"socks4://{0}".format(choice(proxies_file)),
-                "https":"socks4://{0}".format(choice(proxies_file))
-            }
+        if 'error' in r.text:
+            logging.error('Error in following user.')
+            logging.error(r.text)
+        
         else:
-            proxies = {
-                "http":"socks5://{0}".format(choice(proxies_file)),
-                "https":"socks5://{0}".format(choice(proxies_file))
-            }
-        return proxies
+            try:
+                followed_user = r.json()[0]['data']['followUser']['follow']['user']
+                logging.debug('Success!')
+                logging.info('Followed %s ID: %s' % (followed_user['displayName'], followed_user['id']))
+                return True
+            except Exception as e:
+                logging.error('Error in following user.')
+                logging.warning(e)
 
-    def TitleUpdate(self):
-        while True:
-            self.SetTitle(f'[Twitch Token Checker] ^| HITS: {self.hits} ^| BADS: {self.bads} ^| RETRIES: {self.retries} ^| WEBHOOK RETRIES: {self.webhook_retries} ^| THREADS: {active_count()-1}')
-            sleep(0.1)
+        return False
 
-    def TokenCheck(self,token):
-        try:
-            useragent = self.GetRandomUserAgent()
+    def _unfollow(self, channel_id:str) -> bool:
+        payload = '[{"operationName":"FollowButton_UnfollowUser","variables":{"input":{"targetID":"%s"}},"extensions":{"persistedQuery":{"version":1,"sha256Hash":"d7fbdb4e9780dcdc0cc1618ec783309471cd05a59584fc3c56ea1c52bb632d41"}}}]' % channel_id
 
-            headers = {
-                'User-Agent':useragent,
-                'Authorization':f'OAuth {token}'
-            }
+        r = requests.post('https://gql.twitch.tv/gql', data=payload, headers=self.HEADERS)
 
-            response = ''
-            proxy = ''
-            link = 'https://id.twitch.tv/oauth2/validate'
+        if 'error' in r.text:
+            logging.error('Error in unfollowing user.')
+            logging.error(r.text)
 
-            if self.use_proxy == 1:
-                proxy = self.GetRandomProxy()
-                response = requests.get(link,headers=headers,proxies=proxy)
+        else:
+            try:
+                reqid = r.json()[0]['extensions']['requestID']
+                logging.info('Unfollowed user [requestID: %s]'% reqid )
+                return True
+            except Exception as e:
+                logging.error('Error in unfollowing user.')
+                logging.warning(e)
+
+        return False
+class Converter(Twitch):
+    def __init__(self):
+        super().__init__()
+        self.combo_list = self._read_file('config/convert.txt')
+
+    def _write_token(self, content: str) -> None:
+        with open('output/oauth_tokens.txt', 'a', encoding='utf-8') as f:
+            f.write('%s\n' % content)
+
+    def convert(self):
+        for x in self.combo_list:
+            combo = x.split(':')
+            token = self._login(combo[0], combo[1])
+            if token:
+                logging.info('Successfully converted [%s] to [%s]' % (x, token))
+                self._write_token(token)
+
             else:
-                response = requests.get(link,headers=headers)
+                logging.info('Unable to convert [%s]' % x )
 
-            if 'client_id' in response.text:
-                self.PrintText(Fore.MAGENTA,Fore.WHITE,'HIT',token)
-                with open('[Data]/Results/hits.txt','a',encoding='utf8') as f:
-                    f.write(token+'\n')
-                response_data = response.text.replace('\n','')
-                with open('Data/Results/detailed_hits.txt','a',encoding='utf8') as f:
-                    f.write(f'{token} | {response_data}\n')
-                self.hits += 1
-            elif 'invalid access token' in response.text:
-                self.PrintText(Fore.RED,Fore.WHITE,'BAD',token)
-                with open('Data/Results/bads.txt','a',encoding='utf8') as f:
-                    f.write(token+'\n')
-                self.bads += 1
-                if self.webhook_enable == 1:
-                    self.SendWebhook('Twitch Token',token,'https://cdn.discordapp.com/attachments/776819723731206164/796935218166497352/onemanbuilds_new_logo_final.png','https://i.dlpng.com/static/png/4669469-twitch-logo-png-images-free-download-twitch-png-1600_1600_preview.png',proxy,useragent)
-            else:
-                self.retries += 1
-                self.TokenCheck(token)
-        except:
-            self.retries += 1
-            self.TokenCheck(token)
+class Follow(Twitch):
+    def __init__(self, channel: str):
+        super().__init__()
+        self.token_list = self._read_file('config/oauth_tokens.txt')
+        self.channel = channel
+        self.channel_id = self._cid()
 
-    def Start(self):
-        Thread(target=self.TitleUpdate).start()
-        tokens = self.ReadFile('Data/tokens.txt','r')
-        for token in tokens:
-            Run = True
-            while Run:
-                if active_count() <= self.threads_num:
-                    Thread(target=self.TokenCheck,args=(token,)).start()
-                    Run = False
+    def _cid(self):
+        access = 'qecxhnjevnnfvskhhd07od91yliqti'
+        self._update_header(access)
+        channel_id = self._get_cid(self.channel, access)
+        return channel_id
 
-if __name__ == "__main__":
-    main = Main()
-    main.Start()
+    def follow(self):
+        count = 0
+        failed = 0
+        if self.channel_id:
+            for token in self.token_list:
+                logging.debug('Current token: %s' % token)
+                self._update_header(token)
+                logging.debug('Added Authorization oAuth to header')
+                followed = self._follow(self.channel_id)
+
+                if followed:
+                    count += 1
+                else:
+                    failed += 1
+
+                os.system('title Twitch Follow Bot ^| Followers Sent: %d ^| Failed: %d' % (count, failed))
+        else:
+            logging.warning('Channel ID is null')
+
+    def unfollow(self):
+        count = 0
+        failed = 0
+        if self.channel_id:
+            for token in self.token_list:
+                logging.debug('Current token: %s' % token)
+                self._update_header(token)
+                unfollowed = self._unfollow(self.channel_id)
+
+                if unfollowed:
+                    count += 1
+                else:
+                    failed += 1
+
+                os.system('title Twitch Unfollow Bot ^| Success Count: %d ^| Failed: %d' % (count, failed))
+
+        else:
+            logging.warning('Channel ID is null')
+def title():
+    title= f'''{Fore.LIGHTRED_EX}
+\t\t▄▄▄▄▄▄▄▌ ▐ ▄▌▪  ▄▄▄▄▄ ▄▄·  ▄ .▄  ·▄▄▄      ▄▄▌  ▄▄▌        ▄▄▌ ▐ ▄▌  ▄▄▄▄·       ▄▄▄▄▄
+\t\t•██  ██· █▌▐███ •██  ▐█ ▌▪██▪▐█  ▐▄▄  ▄█▀▄ ██•  ██•   ▄█▀▄ ██· █▌▐█  ▐█ ▀█▪ ▄█▀▄ •██  
+\t\t ▐█.▪██▪▐█▐▐▌▐█· ▐█.▪██ ▄▄██▀▀█  █  ▪▐█▌.▐▌██ ▪ ██ ▪ ▐█▌.▐▌██▪▐█▐▐▌  ▐█▀▀█▄▐█▌.▐▌ ▐█.▪
+\t\t ▐█▌·▐█▌██▐█▌▐█▌ ▐█▌·▐███▌██▌▐▀  ██ .▐█▌.▐▌▐█▌ ▄▐█▌ ▄▐█▌.▐▌▐█▌██▐█▌  ██▄▪▐█▐█▌.▐▌ ▐█▌·
+\t\t ▀▀▀  ▀▀▀▀ ▀▪▀▀▀ ▀▀▀ ·▀▀▀ ▀▀▀ ·  ▀▀▀  ▀█▄▀▪.▀▀▀ .▀▀▀  ▀█▄▀▪ ▀▀▀▀ ▀▪  ·▀▀▀▀  ▀█▄▀▪ ▀▀▀ {Style.RESET_ALL}
+        '''
+    return title
+
+
+def menu():
+    menu = f'''{Fore.LIGHTRED_EX}
+                                         ╔══════════════════════════════╗
+                                                  [1] Follow Bot
+                                                  [2] Unfollower
+                                                  [3] Converter
+                                         ╚══════════════════════════════╝    {Style.RESET_ALL}
+        '''
+    return menu
+
+def logic():
+    user_choice = int(input(f'{Fore.LIGHTRED_EX}\t[?] > {Style.RESET_ALL}'))
+
+    if user_choice == 1:
+        clear()
+        print(title())
+        print('\n\n\n')
+        channel = input('Enter name of channel to follow [e.g Ninja]: ')
+        Follow(channel).follow()
+
+    elif user_choice == 2:
+        clear()
+        print(title())
+        print('\n\n\n')
+        channel = input('Enter name of channel to unfollow: ')
+        Follow(channel).unfollow()
+
+    elif user_choice == 3:
+        clear()
+        print(title())
+        print('\n\n\n\n')
+        print('Converting username:password to token from config/convert.txt')
+        Converter().convert()
+
+    else:
+        print('Invalid Choice')
+
+def main():
+    os.system('title [Twitch Follow Bot] ^| Rim')
+    clear()
+    print(title())
+    print(menu())
+    print('\n')
+    logic()
+    
+if __name__ == '__main__':
+    main()
